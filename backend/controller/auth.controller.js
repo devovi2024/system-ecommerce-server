@@ -203,3 +203,13 @@ export const refreshToken = async (req, res) => {
     });
   }
 };
+
+
+export const getProfile = async (req, res) => {
+  try {
+    res.json
+  } catch (error) {
+    console.error('Error in getProfile:', error.message);
+    return res.status(500).json({ success: false, message: "Server error" });
+  }
+};
