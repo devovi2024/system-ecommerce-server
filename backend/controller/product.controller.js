@@ -1,6 +1,6 @@
 import redis from "../lib/redis.js";
 import Product from "../models/product.model.js";
-
+import cloudinary from "../lib/cloudinary.js"; 
 export const getAllProducts = async (req, res) => {
   try {
     const products = await Product.find({});
@@ -33,24 +33,43 @@ export const getFeaturedProducts = async (req, res) =>{
   }
 }
 
+
+
 export const createProduct = async (req, res) => {
   try {
-    const { name, description, price, image, category } = req.body;
+    const { title, description, price, category } = req.body;
 
-    const cloudinaryResponse = await cloudinary.uploader.upload(image);
+    if (!req.file) {
+      return res.status(400).json({ success: false, message: "Image file is required" });
+    }
+
+    const streamUpload = () => {
+      return new Promise((resolve, reject) => {
+        const stream = cloudinary.uploader.upload_stream(
+          { folder: "products" },
+          (error, result) => {
+            if (result) resolve(result);
+            else reject(error);
+          }
+        );
+        stream.end(req.file.buffer);
+      });
+    };
+
+    const uploadResult = await streamUpload();
 
     const product = await Product.create({
-      name,
+      title,
       description,
       price,
-      image: cloudinaryResponse?.secure_url || "",  
       category,
+      image: uploadResult.secure_url,
     });
 
-    return res.status(201).json(product);
+    res.status(201).json({ success: true, product });
   } catch (error) {
-    console.error('Product creation error:', error.message);
-    return res.status(500).json({ success: false, message: "Server error" });
+    console.error("Product creation error:", error);
+    res.status(500).json({ success: false, message: "Server error" });
   }
 };
 
