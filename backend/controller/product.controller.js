@@ -130,33 +130,42 @@ export const getRecommendedProducts = async (req, res) => {
 
 
 
-
-export const getProductsByCategory = async (req, res) =>{
-  const {category} = req.params;
+export const getProductsByCategory = async (req, res) => {
+  const { category } = req.params;
   try {
-    const products = await Product.find({category});
+    const products = await Product.find({ category: category.toLowerCase() });
+
+    if (!products || products.length === 0) {
+      return res.status(404).json({ message: "No products found in this category." });
+    }
+
+    res.status(200).json(products);
   } catch (error) {
-    
+    res.status(500).json({ message: "Server error", error: error.message });
   }
-}
+};
 
-export const toggleFeaturedProduct = async (req, res) =>{
 
+
+export const toggleFeaturedProduct = async (req, res) => {
   try {
     const product = await Product.findById(req.params.id);
-    if(product) {
+    if (product) {
       product.isFeatured = !product.isFeatured;
-      const updateProduct = await product.save();
+      const updatedProduct = await product.save();
       await updateProductCache();
-      return res.status(200).json(updateProduct);
+
+      // ✅ Only return `featured` for frontend
+      return res.status(200).json({ featured: updatedProduct.isFeatured });
     } else {
-      return res.status(404).json({success: false, message: "Product not found"})
+      return res.status(404).json({ success: false, message: "Product not found" });
     }
   } catch (error) {
-    console.error('Error in toggleFeaturedProduct controller :', error.message);
-    return res.status(500).json({ success: false, message: "Server error" });  
+    console.error("Error in toggleFeaturedProduct controller:", error.message);
+    return res.status(500).json({ success: false, message: "Server error" });
   }
-}
+};
+
 
 
 async function updateProductCache() {
