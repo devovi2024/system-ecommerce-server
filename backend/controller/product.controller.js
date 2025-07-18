@@ -4,7 +4,7 @@ import cloudinary from "../lib/cloudinary.js";
 export const getAllProducts = async (req, res) => {
   try {
     const products = await Product.find({});
-    return res.status(200).json({ products }); // ✅ Fixed here
+    return res.status(200).json({ products }); 
   } catch (error) {
     console.error('Product fetch error:', error.message);
     return res.status(500).json({ success: false, message: "Server error" });
