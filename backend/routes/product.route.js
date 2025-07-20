@@ -4,6 +4,7 @@ import {
   getFeaturedProducts,
   getProductsByCategory,
   getRecommendedProducts,
+  getProductById,
   createProduct,
   deleteProduct,
   toggleFeaturedProduct,
@@ -17,6 +18,7 @@ const router = express.Router();
 router.get("/featured", getFeaturedProducts);
 router.get("/category/:category", getProductsByCategory);
 router.get("/recommendation", getRecommendedProducts);
+router.get("/:id", getProductById);
 
 router.get("/", protectRoute, adminRoute, getAllProducts);
 router.post("/", protectRoute, adminRoute, upload.single("image"), createProduct);
