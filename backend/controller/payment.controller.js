@@ -13,7 +13,6 @@ export const createCheckoutSession = async (req, res) => {
     let totalAmount = 0;
 
     const lineItems = products.map((product) => {
-      const productName = product.name || product.description || "Product";
       const amount = Math.round(product.price * 100);
       totalAmount += amount * (product.quantity || 1);
 
@@ -21,7 +20,7 @@ export const createCheckoutSession = async (req, res) => {
         price_data: {
           currency: "usd",
           product_data: {
-            name: productName,
+            name: product.name || "Product",
             images: product.image ? [product.image] : [],
           },
           unit_amount: amount,
@@ -55,7 +54,7 @@ export const createCheckoutSession = async (req, res) => {
       mode: "payment",
       success_url: `${process.env.CLIENT_URL}/purchase-success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${process.env.CLIENT_URL}/purchase-cancel`,
-      discounts: discounts,
+      discounts,
       metadata: {
         userId: req.user._id.toString(),
         couponCode: couponCode || "",
@@ -75,51 +74,55 @@ export const createCheckoutSession = async (req, res) => {
 
     res.status(200).json({ id: session.id, totalAmount: totalAmount / 100 });
   } catch (error) {
-    console.error("Error creating Stripe Checkout Session:", error);
+    console.error("❌ Error in createCheckoutSession:", error);
     res.status(500).json({ message: "Error processing checkout", error: error.message });
   }
 };
 
 export const checkoutSuccess = async (req, res) => {
   try {
-    const { session_id } = req.body;
-
-    if (!session_id) {
-      return res.status(400).json({ error: "Missing session_id" });
+    const { sessionId } = req.body;
+    if (!sessionId) {
+      return res.status(400).json({ error: "Missing sessionId" });
     }
 
-    // Retrieve session details from Stripe
-    const session = await stripe.checkout.sessions.retrieve(session_id);
+    const session = await stripe.checkout.sessions.retrieve(sessionId);
+    const userId = session.metadata.userId;
 
-    // Check if order already exists (avoid duplicates)
-    const existingOrder = await Order.findOne({ stripeSessionId: session.id });
-    if (existingOrder) {
-      return res.status(200).json({ message: "Order already processed" });
+    let order = await Order.findOne({ stripeSessionId: session.id }).populate("products.product");
+
+    if (!order) {
+      const productsMeta = JSON.parse(session.metadata.products);
+      const orderProducts = productsMeta.map((p) => ({
+        product: p.id,
+        quantity: p.quantity,
+        price: p.price,
+      }));
+
+      order = new Order({
+        user: userId,
+        products: orderProducts,
+        totalAmount: session.amount_total / 100,
+        stripeSessionId: session.id,
+      });
+
+      await order.save();
+      order = await Order.findById(order._id).populate("products.product");
     }
 
-    // Parse products metadata
-    const products = JSON.parse(session.metadata.products);
+    const orderWithDetails = {
+      ...order.toObject(),
+      products: order.products.map((item) => ({
+        name: item.product?.name || "Unknown",
+        quantity: item.quantity,
+        price: item.price,
+        image: item.product?.image || null,
+      })),
+    };
 
-    // Build order products array for Mongo
-    const orderProducts = products.map((p) => ({
-      product: p.id,
-      quantity: p.quantity,
-      price: p.price,
-    }));
-
-    // Create and save new order
-    const order = new Order({
-      user: session.metadata.userId,
-      products: orderProducts,
-      totalAmount: session.amount_total / 100,
-      stripeSessionId: session.id,
-    });
-
-    await order.save();
-
-    res.status(200).json({ message: "Order saved successfully" });
+    res.status(200).json({ order: orderWithDetails });
   } catch (error) {
-    console.error("Error in checkoutSuccess:", error);
+    console.error("❌ Error in checkoutSuccess:", error);
     res.status(500).json({ error: "Failed to process checkout success" });
   }
 };
@@ -129,7 +132,6 @@ async function createStripeCoupon(discountPercentage) {
     percent_off: discountPercentage,
     duration: "once",
   });
-
   return coupon.id;
 }
 
@@ -139,13 +141,11 @@ async function createNewCoupon(userId) {
   const newCoupon = new Coupon({
     code: "GIFT" + Math.random().toString(36).substring(2, 8).toUpperCase(),
     discountPercentage: 10,
-    expirationDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), 
-    userId: userId,
+    expirationDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+    userId,
     isActive: true,
   });
 
   await newCoupon.save();
-
   return newCoupon;
 }
- 
