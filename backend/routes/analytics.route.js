@@ -15,7 +15,7 @@ router.get("/", protectRoute, adminRoute, async (req, res) => {
 
     res.json({
       analyticsData,
-      dailySalesData
+      dailySalesData,
     });
   } catch (error) {
     console.error("Error in analytics route:", error.message);

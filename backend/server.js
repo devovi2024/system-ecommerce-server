@@ -9,6 +9,7 @@ import paymentRoutes from "./routes/payment.route.js";
 import analyticsRoutes from "./routes/analytics.route.js";
 import { connectDB } from "./lib/db.js";
 import cookieParser from "cookie-parser";
+import categoryRoutes from './routes/category.routes.js'
 
 dotenv.config();
 
@@ -31,6 +32,8 @@ app.use(express.urlencoded({ limit: "10mb", extended: true }));
 
 app.use("/api/auth", authRoutes);
 app.use("/api/products", productRoutes);
+app.use("/api/categories", categoryRoutes);
+
 app.use("/api/cart", cartRoutes);
 app.use("/api/coupons", couponRoutes);
 app.use("/api/payments", paymentRoutes);

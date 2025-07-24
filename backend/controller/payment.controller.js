@@ -74,7 +74,7 @@ export const createCheckoutSession = async (req, res) => {
 
     res.status(200).json({ id: session.id, totalAmount: totalAmount / 100 });
   } catch (error) {
-    console.error("❌ Error in createCheckoutSession:", error);
+    console.error("Error in createCheckoutSession:", error);
     res.status(500).json({ message: "Error processing checkout", error: error.message });
   }
 };
@@ -82,6 +82,7 @@ export const createCheckoutSession = async (req, res) => {
 export const checkoutSuccess = async (req, res) => {
   try {
     const { sessionId } = req.body;
+
     if (!sessionId) {
       return res.status(400).json({ error: "Missing sessionId" });
     }
@@ -93,6 +94,7 @@ export const checkoutSuccess = async (req, res) => {
 
     if (!order) {
       const productsMeta = JSON.parse(session.metadata.products);
+
       const orderProducts = productsMeta.map((p) => ({
         product: p.id,
         quantity: p.quantity,
@@ -122,7 +124,7 @@ export const checkoutSuccess = async (req, res) => {
 
     res.status(200).json({ order: orderWithDetails });
   } catch (error) {
-    console.error("❌ Error in checkoutSuccess:", error);
+    console.error("Error in checkoutSuccess:", error);
     res.status(500).json({ error: "Failed to process checkout success" });
   }
 };

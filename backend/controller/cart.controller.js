@@ -1,6 +1,8 @@
 import Product from "../models/product.model.js";
 
-// Get cart products with quantities from user's cart
+/**
+ * Get all products from user's cart with their quantities and full product details.
+ */
 export const getCartProducts = async (req, res) => {
   try {
     const user = req.user;
@@ -29,7 +31,9 @@ export const getCartProducts = async (req, res) => {
   }
 };
 
-// Add a product to user's cart or increase quantity if exists
+/**
+ * Add a product to user's cart or increase its quantity if already present.
+ */
 export const addToCart = async (req, res) => {
   try {
     const { productId } = req.body;
@@ -57,7 +61,9 @@ export const addToCart = async (req, res) => {
   }
 };
 
-// Remove a product from user's cart by product ID
+/**
+ * Remove a product from user's cart by its product ID.
+ */
 export const removeFromCart = async (req, res) => {
   try {
     const productId = req.params.id;
@@ -84,7 +90,9 @@ export const removeFromCart = async (req, res) => {
   }
 };
 
-// Update quantity of a product in user's cart or remove if quantity <= 0
+/**
+ * Update quantity of a product in user's cart or remove it if quantity is zero or less.
+ */
 export const updateQuantity = async (req, res) => {
   try {
     const productId = req.params.id;
@@ -124,7 +132,9 @@ export const updateQuantity = async (req, res) => {
   }
 };
 
-// Clear all items from user's cart
+/**
+ * Remove all items from user's cart.
+ */
 export const removeAllFromCart = async (req, res) => {
   try {
     const user = req.user;
