@@ -3,13 +3,14 @@ import dotenv from "dotenv";
 import cors from "cors";  
 import authRoutes from "./routes/auth.route.js";
 import productRoutes from "./routes/product.route.js";
+import reviewRoutes from "./routes/review.routes.js";
 import cartRoutes from "./routes/cart.route.js";
 import couponRoutes from "./routes/coupon.route.js";
 import paymentRoutes from "./routes/payment.route.js";
 import analyticsRoutes from "./routes/analytics.route.js";
 import { connectDB } from "./lib/db.js";
 import cookieParser from "cookie-parser";
-import categoryRoutes from './routes/category.routes.js'
+import categoryRoutes from './routes/category.routes.js';
 
 dotenv.config();
 
@@ -38,6 +39,7 @@ app.use("/api/cart", cartRoutes);
 app.use("/api/coupons", couponRoutes);
 app.use("/api/payments", paymentRoutes);
 app.use("/api/analytics", analyticsRoutes);
+app.use("/api/reviews", reviewRoutes);
 
 const startServer = async () => {
   try {

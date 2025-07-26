@@ -3,9 +3,6 @@ import Category from "../models/category.model.js";
 import redis from "../lib/redis.js";
 import cloudinary from "../lib/cloudinary.js";
 
-/**
- * Get all products with populated category data.
- */
 export const getAllProducts = async (req, res) => {
   try {
     const products = await Product.find({}).populate("category");
@@ -16,9 +13,6 @@ export const getAllProducts = async (req, res) => {
   }
 };
 
-/**
- * Get featured products either from Redis cache or database.
- */
 export const getFeaturedProducts = async (req, res) => {
   try {
     let featuredProducts = await redis.get("featured_products");
@@ -41,42 +35,32 @@ export const getFeaturedProducts = async (req, res) => {
   }
 };
 
-/**
- * Get a single product by its ID, including category name.
- */
 export const getProductById = async (req, res) => {
   try {
-    const product = await Product.findById(req.params.id).populate("category", "name");
-    if (!product) {
-      return res.status(404).json({ message: "Product not found" });
-    }
-    res.json(product);
+    const product = await Product.findById(req.params.id).populate("reviews");
+    if (!product) return res.status(404).json({ message: "Product not found" });
+
+    res.status(200).json(product);
   } catch (error) {
-    console.error(error.message);
-    res.status(500).json({ message: "Server error", error: error.message });
+    console.error("Get Product Error:", error);
+    res.status(500).json({ message: "Server error" });
   }
 };
 
-/**
- * Create a new product with optional image upload to Cloudinary.
- */
 export const createProduct = async (req, res) => {
   try {
     const { title, description, price, image, category } = req.body;
 
-    // Validate category existence
     const categoryExists = await Category.findById(category);
     if (!categoryExists) {
       return res.status(400).json({ message: "Invalid category ID" });
     }
 
-    // Upload image to Cloudinary if provided
     let cloudinaryResponse = null;
     if (image) {
       cloudinaryResponse = await cloudinary.uploader.upload(image, { folder: "products" });
     }
 
-    // Create product document
     const product = await Product.create({
       title,
       description,
@@ -92,9 +76,6 @@ export const createProduct = async (req, res) => {
   }
 };
 
-/**
- * Delete a product by ID, including its Cloudinary image.
- */
 export const deleteProduct = async (req, res) => {
   try {
     const product = await Product.findById(req.params.id);
@@ -102,14 +83,11 @@ export const deleteProduct = async (req, res) => {
       return res.status(404).json({ message: "Product not found" });
     }
 
-    // Delete image from Cloudinary if exists
     if (product.image) {
       const publicId = product.image.split("/").pop().split(".")[0];
       try {
         await cloudinary.uploader.destroy(`products/${publicId}`);
-      } catch {
-        // Ignore errors during image deletion
-      }
+      } catch {}
     }
 
     await Product.findByIdAndDelete(req.params.id);
@@ -120,9 +98,6 @@ export const deleteProduct = async (req, res) => {
   }
 };
 
-/**
- * Get 4 random recommended products.
- */
 export const getRecommendedProducts = async (req, res) => {
   try {
     const products = await Product.aggregate([
@@ -144,22 +119,16 @@ export const getRecommendedProducts = async (req, res) => {
   }
 };
 
-/**
- * Get products by category name (case-insensitive).
- */
 export const getProductsByCategory = async (req, res) => {
   const categoryParam = req.params.category;
 
   try {
-    // Find category by name ignoring case
     const category = await Category.findOne({ name: new RegExp(`^${categoryParam}$`, "i") });
     if (!category) {
       return res.status(404).json({ message: "Category not found" });
     }
 
-    // Find products belonging to the category
     const products = await Product.find({ category: category._id }).populate("category", "name");
-
     res.status(200).json({ products });
   } catch (error) {
     console.error(error.message);
@@ -167,9 +136,6 @@ export const getProductsByCategory = async (req, res) => {
   }
 };
 
-/**
- * Toggle the 'isFeatured' status of a product by ID.
- */
 export const toggleFeaturedProduct = async (req, res) => {
   try {
     const product = await Product.findById(req.params.id);
@@ -179,7 +145,6 @@ export const toggleFeaturedProduct = async (req, res) => {
     product.isFeatured = !product.isFeatured;
     const updatedProduct = await product.save();
 
-    // Update cached featured products in Redis
     await updateFeaturedProductsCache();
 
     res.json(updatedProduct);
@@ -189,15 +154,72 @@ export const toggleFeaturedProduct = async (req, res) => {
   }
 };
 
-/**
- * Internal helper to update Redis cache of featured products.
- */
 async function updateFeaturedProductsCache() {
   try {
     const featuredProducts = await Product.find({ isFeatured: true })
       .populate("category", "name")
       .lean();
     await redis.set("featured_products", JSON.stringify(featuredProducts));
-  } catch {
-  }
+  } catch {}
 }
+
+export const getRelatedProducts = async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    const currentProduct = await Product.findById(id);
+    if (!currentProduct) {
+      return res.status(404).json({ message: "Product not found" });
+    }
+
+    const related = await Product.find({
+      _id: { $ne: currentProduct._id },
+      category: currentProduct.category,
+    })
+      .limit(6)
+      .lean();
+
+    res.json({ relatedProducts: related });
+  } catch (error) {
+    console.error("Related product fetch error:", error);
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+};
+
+export const getPeopleAlsoBought = async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    const currentProduct = await Product.findById(id);
+    if (!currentProduct) {
+      return res.status(404).json({ message: "Product not found" });
+    }
+
+    const peopleAlsoBought = await Product.find({
+      _id: { $ne: currentProduct._id },
+      category: currentProduct.category,
+    })
+      .limit(6)
+      .select("_id title description price image")
+      .lean();
+
+    res.json({ peopleAlsoBought });
+  } catch (error) {
+    console.error("People Also Bought fetch error:", error);
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+};
+
+export const getTopRatedProducts = async (req, res) => {
+  try {
+    const products = await Product.find()
+      .sort({ averageRating: -1 })
+      .limit(20)
+      .populate("reviews");
+
+    res.status(200).json({ success: true, products });
+  } catch (error) {
+    console.error("Top Rated Products Error:", error);
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+};

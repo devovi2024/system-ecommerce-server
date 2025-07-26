@@ -26,7 +26,24 @@ const productSchema = new mongoose.Schema({
     type: Boolean,
     default: false,
   },
-});
+
+  // 🟨 New Fields for Review System
+  reviews: [
+    {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Review"
+    }
+  ],
+  averageRating: {
+    type: Number,
+    default: 0
+  },
+  numOfReviews: {
+    type: Number,
+    default: 0
+  }
+
+}, { timestamps: true });
 
 const Product = mongoose.model("Product", productSchema);
 export default Product;
