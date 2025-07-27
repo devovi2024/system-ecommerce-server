@@ -27,7 +27,7 @@ const productSchema = new mongoose.Schema({
     default: false,
   },
 
-  // 🟨 New Fields for Review System
+  //  New Fields for Review System
   reviews: [
     {
       type: mongoose.Schema.Types.ObjectId,

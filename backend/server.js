@@ -11,7 +11,7 @@ import analyticsRoutes from "./routes/analytics.route.js";
 import { connectDB } from "./lib/db.js";
 import cookieParser from "cookie-parser";
 import categoryRoutes from './routes/category.routes.js';
-
+import orderRoutes from './routes/order.route.js'
 dotenv.config();
 
 const app = express();
@@ -40,6 +40,7 @@ app.use("/api/coupons", couponRoutes);
 app.use("/api/payments", paymentRoutes);
 app.use("/api/analytics", analyticsRoutes);
 app.use("/api/reviews", reviewRoutes);
+app.use("/api/orders", orderRoutes);
 
 const startServer = async () => {
   try {

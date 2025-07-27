@@ -18,25 +18,34 @@ const userSchema = new mongoose.Schema({
     required: [true, "Password is required"],
     minlength: [6, "Password must be at least 6 characters"],
   },
+  dob: String,
+  gender: {
+    type: String,
+    enum: ["male", "female"],
+    default: "male",
+  },
+  mobile: String,
+  affiliatePhone: String,
+  profileImage: String,
   cartItems: [
     {
       quantity: Number,
       product: {
         type: mongoose.Schema.Types.ObjectId,
-        ref: "Product"
-      }
-    }
+        ref: "Product",
+      },
+    },
   ],
   role: {
     type: String,
     enum: ["admin", "customer"],
     default: "customer",
   },
+
 }, {
   timestamps: true,
 });
 
-// Pre-save hook to hash password before saving
 userSchema.pre("save", async function (next) {
   if (!this.isModified("password")) return next();
 
@@ -49,7 +58,6 @@ userSchema.pre("save", async function (next) {
   }
 });
 
-// Compare password method for login
 userSchema.methods.comparePassword = async function (password) {
   return await bcrypt.compare(password, this.password);
 };

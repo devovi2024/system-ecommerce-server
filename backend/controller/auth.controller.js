@@ -1,8 +1,9 @@
 import User from '../models/user.model.js';
 import jwt from 'jsonwebtoken';
 import redis from '../lib/redis.js';
+import cloudinary from "../lib/cloudinary.js"; 
 
-// Token expiry times
+
 const FOUR_MONTHS_IN_SECONDS = 60 * 60 * 24 * 30 * 4; 
 const ACCESS_TOKEN_EXPIRE = '25m'; 
 
@@ -220,5 +221,54 @@ export const getProfile = async (req, res) => {
   } catch (error) {
     console.error('Error in getProfile:', error.message);
     return res.status(500).json({ success: false, message: "Server error" });
+  }
+};
+
+
+export const updateProfile = async (req, res) => {
+  try {
+    console.log("Update request body:", req.body);
+    const user = await User.findById(req.user._id);
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    // Update basic fields
+    user.name = req.body.name || user.name;
+    user.dob = req.body.dob || user.dob;
+    user.gender = req.body.gender || user.gender;
+    user.mobile = req.body.mobile || user.mobile;
+    user.affiliatePhone = req.body.affiliatePhone || user.affiliatePhone;
+
+    if (req.body.password && req.body.password.length >= 6) {
+      user.password = req.body.password;
+    }
+
+    if (req.body.image) {
+      const cloudinaryResponse = await cloudinary.uploader.upload(req.body.image, {
+        folder: "profiles",
+      });
+      user.image = cloudinaryResponse.secure_url; 
+    }
+
+    const updatedUser = await user.save();
+
+    res.status(200).json({
+      message: "Profile updated successfully",
+      user: {
+        _id: updatedUser._id,
+        name: updatedUser.name,
+        email: updatedUser.email,
+        dob: updatedUser.dob,
+        gender: updatedUser.gender,
+        mobile: updatedUser.mobile,
+        affiliatePhone: updatedUser.affiliatePhone,
+        image: updatedUser.image || "",  
+      },
+    });
+  } catch (error) {
+    console.error("Update error:", error);
+    res.status(500).json({ message: "Update failed", error });
   }
 };
