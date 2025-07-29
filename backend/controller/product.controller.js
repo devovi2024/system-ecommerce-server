@@ -49,29 +49,87 @@ export const getProductById = async (req, res) => {
 
 export const createProduct = async (req, res) => {
   try {
-    const { title, description, price, image, category } = req.body;
+    const { title, description, price, images, category, discount, stock } = req.body;
 
+    // Validate category
     const categoryExists = await Category.findById(category);
     if (!categoryExists) {
       return res.status(400).json({ message: "Invalid category ID" });
     }
 
-    let cloudinaryResponse = null;
-    if (image) {
-      cloudinaryResponse = await cloudinary.uploader.upload(image, { folder: "products" });
+    // Validate images
+    if (!images || !Array.isArray(images) || images.length === 0) {
+      return res.status(400).json({ message: "Please provide at least one image" });
+    }
+    if (images.length > 4) {
+      return res.status(400).json({ message: "Maximum 4 images allowed" });
     }
 
-    const product = await Product.create({
+    // Validate stock
+    if (stock == null || isNaN(stock) || stock < 0) {
+      return res.status(400).json({ message: "Stock must be a non-negative number" });
+    }
+
+    // Upload images to Cloudinary
+    const uploadedImages = [];
+    for (const img of images) {
+      const uploadResult = await cloudinary.uploader.upload(img, { folder: "products" });
+      uploadedImages.push(uploadResult.secure_url);
+    }
+
+    const newProduct = await Product.create({
       title,
       description,
       price,
-      image: cloudinaryResponse?.secure_url || "",
+      discount: discount || 0,
+      stock,
+      images: uploadedImages,
       category,
     });
 
-    res.status(201).json(product);
+    res.status(201).json(newProduct);
   } catch (error) {
-    console.error(" Product creation failed:", error);
+    console.error("Error creating product:", error);
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+};
+
+export const updateProduct = async (req, res) => {
+  try {
+    const { title, description, price, images, category, discount, stock } = req.body;
+
+    let uploadedImages;
+    if (images && Array.isArray(images)) {
+      uploadedImages = [];
+      for (const img of images) {
+        const uploadResult = await cloudinary.uploader.upload(img, { folder: "products" });
+        uploadedImages.push(uploadResult.secure_url);
+      }
+    }
+
+    if (stock !== undefined && (isNaN(stock) || stock < 0)) {
+      return res.status(400).json({ message: "Stock must be a non-negative number" });
+    }
+
+    const updatedProduct = await Product.findByIdAndUpdate(
+      req.params.id,
+      {
+        ...(title && { title }),
+        ...(description && { description }),
+        ...(price && { price }),
+        ...(category && { category }),
+        ...(discount !== undefined && { discount }),
+        ...(stock !== undefined && { stock }),
+        ...(uploadedImages && { images: uploadedImages }),
+      },
+      { new: true }
+    );
+
+    if (!updatedProduct) return res.status(404).json({ message: "Product not found" });
+
+    res.status(200).json(updatedProduct);
+  } catch (error) {
+    console.error("Error updating product:", error);
     res.status(500).json({ message: "Server error", error: error.message });
   }
 };
@@ -79,21 +137,32 @@ export const createProduct = async (req, res) => {
 export const deleteProduct = async (req, res) => {
   try {
     const product = await Product.findById(req.params.id);
-    if (!product) {
-      return res.status(404).json({ message: "Product not found" });
-    }
+    if (!product) return res.status(404).json({ message: "Product not found" });
 
-    if (product.image) {
-      const publicId = product.image.split("/").pop().split(".")[0];
+    // Delete images from Cloudinary
+    for (const url of product.images) {
+      const publicId = url.split("/").pop().split(".")[0];
       try {
         await cloudinary.uploader.destroy(`products/${publicId}`);
-      } catch {}
+      } catch (err) {
+        // ignore cloudinary deletion errors
+      }
     }
 
     await Product.findByIdAndDelete(req.params.id);
     res.json({ message: "Product deleted successfully" });
   } catch (error) {
     console.error(error.message);
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+};
+
+export const getDiscountedProducts = async (req, res) => {
+  try {
+    const discountedProducts = await Product.find({ discount: { $gt: 0 } }).populate("category");
+    res.status(200).json({ products: discountedProducts });
+  } catch (error) {
+    console.error("Failed to fetch discounted products", error);
     res.status(500).json({ message: "Server error", error: error.message });
   }
 };
@@ -107,7 +176,7 @@ export const getRecommendedProducts = async (req, res) => {
           _id: 1,
           title: 1,
           description: 1,
-          image: 1,
+          images: 1,
           price: 1,
         },
       },
@@ -200,7 +269,7 @@ export const getPeopleAlsoBought = async (req, res) => {
       category: currentProduct.category,
     })
       .limit(6)
-      .select("_id title description price image")
+      .select("_id title description price images")
       .lean();
 
     res.json({ peopleAlsoBought });

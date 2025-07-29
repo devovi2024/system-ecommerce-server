@@ -1,13 +1,14 @@
 import Product from "../models/product.model.js";
 
 /**
- * Get all products from user's cart with their quantities and full product details.
+ * Get all products from user's cart with their quantities and full product details,
+ * including discount and discounted price.
  */
 export const getCartProducts = async (req, res) => {
   try {
     const user = req.user;
 
-    if (!user?.cartItems) {
+    if (!user?.cartItems || user.cartItems.length === 0) {
       return res.json({ success: true, cartItems: [] });
     }
 
@@ -18,9 +19,18 @@ export const getCartProducts = async (req, res) => {
       const item = user.cartItems.find(
         ci => ci.product && ci.product.toString() === product._id.toString()
       );
+
+      const discount = product.discount || 0; // discount percent or 0
+      const discountedPrice = discount > 0
+        ? product.price * (1 - discount / 100)
+        : product.price;
+
       return {
         ...product.toJSON(),
         quantity: item?.quantity || 1,
+        discount,
+        discountedPrice: +discountedPrice.toFixed(2),
+        stock: product.stock || 0, // include stock info for frontend use
       };
     });
 
@@ -32,7 +42,8 @@ export const getCartProducts = async (req, res) => {
 };
 
 /**
- * Add a product to user's cart or increase its quantity if already present.
+ * Add a product to user's cart or increase its quantity if already present,
+ * with stock availability check.
  */
 export const addToCart = async (req, res) => {
   try {
@@ -42,12 +53,24 @@ export const addToCart = async (req, res) => {
     }
 
     const user = req.user;
+    const product = await Product.findById(productId);
+
+    if (!product) {
+      return res.status(404).json({ success: false, message: "Product not found" });
+    }
+
+    if (product.stock <= 0) {
+      return res.status(400).json({ success: false, message: "Product is out of stock" });
+    }
 
     const existingItem = user.cartItems.find(
       item => item.product && item.product.toString() === productId
     );
 
     if (existingItem) {
+      if (existingItem.quantity + 1 > product.stock) {
+        return res.status(400).json({ success: false, message: "Insufficient stock available" });
+      }
       existingItem.quantity += 1;
     } else {
       user.cartItems.push({ product: productId, quantity: 1 });
@@ -91,7 +114,8 @@ export const removeFromCart = async (req, res) => {
 };
 
 /**
- * Update quantity of a product in user's cart or remove it if quantity is zero or less.
+ * Update quantity of a product in user's cart or remove it if quantity is zero or less,
+ * with stock check.
  */
 export const updateQuantity = async (req, res) => {
   try {
@@ -107,6 +131,15 @@ export const updateQuantity = async (req, res) => {
     }
 
     const user = req.user;
+    const product = await Product.findById(productId);
+
+    if (!product) {
+      return res.status(404).json({ success: false, message: "Product not found" });
+    }
+
+    if (quantity > product.stock) {
+      return res.status(400).json({ success: false, message: "Insufficient stock available" });
+    }
 
     const item = user.cartItems.find(
       item => item.product && item.product.toString() === productId

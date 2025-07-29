@@ -1,49 +1,57 @@
 import mongoose from "mongoose";
 
 const productSchema = new mongoose.Schema({
-  title: {
-    type: String,
-    required: [true, "Title is required"],
-  },
-  description: {
-    type: String,
-    required: [true, "Description is required"],
-  },
-  price: {
+  title: { type: String, required: true },
+  description: { type: String, required: true },
+  price: { type: Number, required: true },
+
+  discount: {
     type: Number,
-    required: [true, "Price is required"],
+    default: 0, // Percentage (0–100)
+    min: 0,
+    max: 100,
   },
-  image: {
-    type: String,
-    required: [true, "Image is required"],
+
+  images: {
+    type: [String],
+    required: true,
+    validate: {
+      validator: (arr) => arr.length <= 4,
+      message: "You can upload up to 4 images only",
+    },
   },
+
   category: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "Category",
-    required: [true, "Category is required"],
-  },
-  isFeatured: {
-    type: Boolean,
-    default: false,
+    required: true,
   },
 
-  //  New Fields for Review System
-  reviews: [
-    {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Review"
-    }
-  ],
-  averageRating: {
+  stock: {
     type: Number,
-    default: 0
+    required: true,
+    min: 0,
+    default: 0,
   },
-  numOfReviews: {
-    type: Number,
-    default: 0
+
+  isFeatured: { type: Boolean, default: false },
+
+  reviews: [{ type: mongoose.Schema.Types.ObjectId, ref: "Review" }],
+  averageRating: { type: Number, default: 0 },
+  numOfReviews: { type: Number, default: 0 },
+}, {
+  timestamps: true,
+  toJSON: { virtuals: true },
+  toObject: { virtuals: true },
+});
+
+// Virtual for discounted price calculation
+productSchema.virtual("discountedPrice").get(function () {
+  if (this.discount && this.discount > 0) {
+    return +(this.price * (1 - this.discount / 100)).toFixed(2);
   }
-
-}, { timestamps: true });
+  return this.price;
+});
 
 const Product = mongoose.model("Product", productSchema);
 export default Product;

@@ -10,6 +10,7 @@ import paymentRoutes from "./routes/payment.route.js";
 import analyticsRoutes from "./routes/analytics.route.js";
 import { connectDB } from "./lib/db.js";
 import cookieParser from "cookie-parser";
+
 import categoryRoutes from './routes/category.routes.js';
 import orderRoutes from './routes/order.route.js'
 dotenv.config();

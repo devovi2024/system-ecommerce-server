@@ -18,30 +18,37 @@ const userSchema = new mongoose.Schema({
     required: [true, "Password is required"],
     minlength: [6, "Password must be at least 6 characters"],
   },
-  dob: String,
+  dob: {
+    type: String, 
+  },
   gender: {
     type: String,
     enum: ["male", "female"],
     default: "male",
   },
-  mobile: String,
-  affiliatePhone: String,
-  profileImage: String,
+  mobile: {
+    type: String,
+  },
+  affiliatePhone: {
+    type: String,
+  },
+  profileImage: {
+    type: String, 
+  },
   cartItems: [
     {
       quantity: Number,
       product: {
         type: mongoose.Schema.Types.ObjectId,
-        ref: "Product",
-      },
-    },
+        ref: "Product"
+      }
+    }
   ],
   role: {
     type: String,
     enum: ["admin", "customer"],
     default: "customer",
   },
-
 }, {
   timestamps: true,
 });
